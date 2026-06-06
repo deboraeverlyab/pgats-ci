@@ -14,8 +14,8 @@ on:
 jobs:
     #nome do job
     e2e-tests:
-        # maquina onde o job vai rodar
-        runs-on: ubuntu-latest
+        # questão 3: self-hosted runner — máquina própria no lugar do servidor do GitHub
+        runs-on: self-hosted
 
         # passos do job
         steps:
@@ -42,10 +42,11 @@ jobs:
             # executar os testes e2e e salvar o output
             - name: Executando testes e2e
               id: e2e
+              shell: bash
               run: yarn run e2e 2>&1 | tee test-output.txt; exit ${PIPESTATUS[0]}
               continue-on-error: true
 
-            # análise das falhas com IA (GitHub Models) — só executa se algum teste falhar
+            # questão 2: análise das falhas com IA (GitHub Models) — só executa se algum teste falhar
             - name: Analisando falhas com IA (GitHub Models)
               if: steps.e2e.outcome == 'failure'
               env:
@@ -87,7 +88,7 @@ jobs:
                 print(analysis)
                 EOF
 
-            # falha a pipeline após a análise, mantendo o comportamento correto de CI
+            # questão 2: falha a pipeline após a análise, mantendo o comportamento correto de CI
             - name: Verificar resultado dos testes
               if: steps.e2e.outcome == 'failure'
               run: exit 1
