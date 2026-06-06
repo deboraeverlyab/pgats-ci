@@ -6,25 +6,25 @@ pipeline {
     stages {
         stage('Instalando Yarn') {
             steps {
-                sh 'npm install -g yarn'
+                bat 'npm install -g yarn'
             }
         }
 
         stage('Instalando dependências') {
             steps {
-                sh 'yarn'
+                bat 'yarn'
             }
         }
 
         stage('Instalando Browsers do Playwright') {
             steps {
-                sh 'yarn playwright install'
+                bat 'yarn playwright install'
             }
         }
 
         stage('Executando testes e2e') {
             steps {
-                sh 'yarn run e2e'
+                bat 'yarn run e2e'
             }
         }
     }
