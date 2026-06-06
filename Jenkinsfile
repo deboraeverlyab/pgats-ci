@@ -1,12 +1,7 @@
 // CI de Nível 01 - Disparo Manual através de clique
 
 pipeline {
-    agent {
-        docker {
-            image 'node:24'
-            args '--ipc=host'
-        }
-    }
+    agent any
 
     stages {
         stage('Instalando Yarn') {
@@ -23,7 +18,7 @@ pipeline {
 
         stage('Instalando Browsers do Playwright') {
             steps {
-                sh 'yarn playwright install --with-deps'
+                sh 'yarn playwright install'
             }
         }
 
