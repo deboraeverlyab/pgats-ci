@@ -30,15 +30,65 @@ jobs:
             # instalação do Yarn
             - name: Instalando Yarn
               run: npm install -g yarn
-            
+
             #   instalação das dependências
             - name: Instalando dependências
               run: yarn
-            
+
             # instalação dos Browsers do Playwright
             - name: Instalando Browsers do Playwright
               run: yarn playwright install
-            
-            # executar os testes e2e
+
+            # executar os testes e2e e salvar o output
             - name: Executando testes e2e
-              run: yarn run e2e
+              id: e2e
+              run: yarn run e2e 2>&1 | tee test-output.txt; exit ${PIPESTATUS[0]}
+              continue-on-error: true
+
+            # análise das falhas com IA (Claude) — só executa se algum teste falhar
+            - name: Analisando falhas com IA (Claude)
+              if: steps.e2e.outcome == 'failure'
+              env:
+                ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+              run: |
+                python3 - <<'EOF'
+                import os, json, urllib.request
+
+                with open("test-output.txt") as f:
+                    output = f.read()
+
+                payload = json.dumps({
+                    "model": "claude-haiku-4-5-20251001",
+                    "max_tokens": 1024,
+                    "messages": [{
+                        "role": "user",
+                        "content": f"Analise os resultados de testes E2E com Playwright abaixo e explique em português as falhas encontradas e as possíveis causas:\n\n{output}"
+                    }]
+                }).encode()
+
+                req = urllib.request.Request(
+                    "https://api.anthropic.com/v1/messages",
+                    data=payload,
+                    headers={
+                        "x-api-key": os.environ["ANTHROPIC_API_KEY"],
+                        "anthropic-version": "2023-06-01",
+                        "content-type": "application/json"
+                    }
+                )
+
+                with urllib.request.urlopen(req) as res:
+                    data = json.loads(res.read())
+                    analysis = data["content"][0]["text"]
+
+                with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+                    f.write("## Análise de Falhas com IA\n\n")
+                    f.write(analysis)
+                    f.write("\n")
+
+                print(analysis)
+                EOF
+
+            # falha a pipeline após a análise, mantendo o comportamento correto de CI
+            - name: Verificar resultado dos testes
+              if: steps.e2e.outcome == 'failure'
+              run: exit 1
