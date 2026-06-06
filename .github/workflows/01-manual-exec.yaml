@@ -45,11 +45,11 @@ jobs:
               run: yarn run e2e 2>&1 | tee test-output.txt; exit ${PIPESTATUS[0]}
               continue-on-error: true
 
-            # análise das falhas com IA (Claude) — só executa se algum teste falhar
-            - name: Analisando falhas com IA (Claude)
+            # análise das falhas com IA (GitHub Models) — só executa se algum teste falhar
+            - name: Analisando falhas com IA (GitHub Models)
               if: steps.e2e.outcome == 'failure'
               env:
-                ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+                GITHUB_TOKEN: ${{ github.token }}
               run: |
                 python3 - <<'EOF'
                 import os, json, urllib.request
@@ -58,7 +58,7 @@ jobs:
                     output = f.read()
 
                 payload = json.dumps({
-                    "model": "claude-haiku-4-5-20251001",
+                    "model": "meta-llama-3.1-70b-instruct",
                     "max_tokens": 1024,
                     "messages": [{
                         "role": "user",
@@ -67,18 +67,17 @@ jobs:
                 }).encode()
 
                 req = urllib.request.Request(
-                    "https://api.anthropic.com/v1/messages",
+                    "https://models.inference.ai.azure.com/chat/completions",
                     data=payload,
                     headers={
-                        "x-api-key": os.environ["ANTHROPIC_API_KEY"],
-                        "anthropic-version": "2023-06-01",
+                        "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
                         "content-type": "application/json"
                     }
                 )
 
                 with urllib.request.urlopen(req) as res:
                     data = json.loads(res.read())
-                    analysis = data["content"][0]["text"]
+                    analysis = data["choices"][0]["message"]["content"]
 
                 with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
                     f.write("## Análise de Falhas com IA\n\n")
